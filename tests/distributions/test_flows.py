@@ -103,6 +103,10 @@ class FlowTests(TestCase):
         arn = AutoRegressiveNN(input_dim, [3 * input_dim + 1], param_dims=[16]*3)
         return dist.DeepSigmoidalFlow(arn, hidden_units=16)
 
+    def _make_maf(self, input_dim):
+        arn = AutoRegressiveNN(input_dim, [3 * input_dim + 1])
+        return dist.MaskedAutoregressiveFlow(arn)
+
     def _make_permute(self, input_dim):
         permutation = torch.randperm(input_dim, device='cpu').to(torch.Tensor().device)
         return dist.PermuteTransform(permutation)
@@ -129,6 +133,10 @@ class FlowTests(TestCase):
         for input_dim in [2, 3, 5, 7, 9, 11]:
             self._test_jacobian(input_dim, self._make_dsf)
 
+    def test_maf_jacobians(self):
+        for input_dim in [2, 3, 5, 7, 9, 11]:
+            self._test_jacobian(input_dim, self._make_maf)
+
     def test_planar_jacobians(self):
         for input_dim in [2, 3, 5, 7, 9, 11]:
             self._test_jacobian(input_dim, self._make_planar)
@@ -149,6 +157,10 @@ class FlowTests(TestCase):
         for input_dim in [2, 3, 5, 7, 9, 11]:
             self._test_inverse(input_dim, self._make_iaf_stable)
 
+    def test_maf_inverses(self):
+        for input_dim in [2, 3, 5, 7, 9, 11]:
+            self._test_inverse(input_dim, self._make_maf)
+
     def test_permute_inverses(self):
         for input_dim in [2, 3, 5, 7, 9, 11]:
             self._test_inverse(input_dim, self._make_permute)
@@ -168,6 +180,10 @@ class FlowTests(TestCase):
     def test_dsf_shapes(self):
         for shape in [(3,), (3, 4), (3, 4, 2)]:
             self._test_shape(shape, self._make_dsf)
+
+    def test_maf_shapes(self):
+        for shape in [(3,), (3, 4), (3, 4, 2)]:
+            self._test_shape(shape, self._make_maf)
 
     def test_permute_shapes(self):
         for shape in [(3,), (3, 4), (3, 4, 2)]:
