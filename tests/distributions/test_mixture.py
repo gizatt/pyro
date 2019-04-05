@@ -110,3 +110,23 @@ def test_expand(sample_shape, batch_shape, event_shape):
     assert d.expand(sample_shape + batch_shape).sample().shape == sample_shape + batch_shape + event_shape
     assert d.expand(sample_shape + batch_shape).mean.shape == sample_shape + batch_shape + event_shape
     assert d.expand(sample_shape + batch_shape).variance.shape == sample_shape + batch_shape + event_shape
+
+
+@pytest.mark.parametrize('sample_shape', [(), (2,), (2, 3)])
+@pytest.mark.parametrize('batch_shape', [(), (3,), (5, 3)])
+@pytest.mark.parametrize('component1',
+                         [dist.Normal(1, 2).expand([2, 3]).to_event(2),
+                          dist.Normal(1, 2).expand([2, 4]).to_event(2)],
+                         ids=['normal', 'normal_mv'])
+@pytest.mark.parametrize('component0',
+                         [dist.Normal(1, 2).expand([2, 5]).to_event(2),
+                          dist.Exponential(2.).expand([2, 6]).to_event(2)],
+                         ids=['normal_mv', 'exponential_mv'])
+def test_concatenated_mixture(component0, component1, sample_shape, batch_shape):
+    if batch_shape:
+        component0 = component0.expand_by(batch_shape)
+        component1 = component1.expand_by(batch_shape)
+    d = dist.ConcatenatedMixture(component0, component1, dim=1)
+    assert d.batch_shape == batch_shape
+    x = d.sample(sample_shape)
+    log_prob = d.log_prob(x)
