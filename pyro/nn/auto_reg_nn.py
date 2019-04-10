@@ -141,6 +141,7 @@ class AutoRegressiveNN(nn.Module):
             self,
             input_dim,
             hidden_dims,
+            observed_dim=0,
             param_dims=[1, 1],
             permutation=None,
             skip_connections=False,
@@ -150,6 +151,7 @@ class AutoRegressiveNN(nn.Module):
             warnings.warn('AutoRegressiveNN input_dim = 1. Consider using an affine transformation instead.')
         self.input_dim = input_dim
         self.hidden_dims = hidden_dims
+        self.observed_dim = observed_dim
         self.param_dims = param_dims
         self.count_params = len(param_dims)
         self.output_multiplier = sum(param_dims)
@@ -175,18 +177,19 @@ class AutoRegressiveNN(nn.Module):
 
         # Create masks
         self.masks, self.mask_skip = create_mask(
-            input_dim=input_dim, observed_dim=0, hidden_dims=hidden_dims, permutation=self.permutation,
+            input_dim=input_dim, observed_dim=observed_dim,
+            hidden_dims=hidden_dims, permutation=self.permutation,
             output_dim_multiplier=self.output_multiplier)
 
         # Create masked layers
-        layers = [MaskedLinear(input_dim, hidden_dims[0], self.masks[0])]
+        layers = [MaskedLinear(observed_dim + input_dim, hidden_dims[0], self.masks[0])]
         for i in range(1, len(hidden_dims)):
             layers.append(MaskedLinear(hidden_dims[i - 1], hidden_dims[i], self.masks[i]))
         layers.append(MaskedLinear(hidden_dims[-1], input_dim * self.output_multiplier, self.masks[-1]))
         self.layers = nn.ModuleList(layers)
 
         if skip_connections:
-            self.skip_layer = MaskedLinear(input_dim, input_dim * self.output_multiplier, self.mask_skip, bias=False)
+            self.skip_layer = MaskedLinear(observed_dim + input_dim, input_dim * self.output_multiplier, self.mask_skip, bias=False)
         else:
             self.skip_layer = None
 
@@ -199,10 +202,19 @@ class AutoRegressiveNN(nn.Module):
         """
         return self.permutation
 
-    def forward(self, x):
+    def forward(self, x, z=None):
         """
-        The forward method
+        The forward method.
+        x are inputs.
+        z are observed vars, if any.
         """
+        if self.observed_dim > 0:
+            if z is None:
+                raise ValueError("Must supply z if observed_dim > 0.")
+            # Support z passed in with bad batch dimension.
+            if z.shape[:-1] != x.shape[:-1]:
+                z = z.expand(x.shape[:-1] + (z.shape[-1],))
+            x = torch.cat((z, x), dim=-1)
         h = x
         for layer in self.layers[:-1]:
             h = self.f(layer(h))

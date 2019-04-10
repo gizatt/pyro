@@ -15,9 +15,10 @@ class AutoRegressiveNNTests(TestCase):
     def setUp(self):
         self.epsilon = 1.0e-3
 
-    def _test_jacobian(self, input_dim, hidden_dim, param_dim):
+    def _test_jacobian(self, input_dim, hidden_dim, observed_dim, param_dim):
         jacobian = torch.zeros(input_dim, input_dim)
-        arn = AutoRegressiveNN(input_dim, [hidden_dim], param_dims=[param_dim])
+        arn = AutoRegressiveNN(
+            input_dim, [hidden_dim], observed_dim=observed_dim, param_dims=[param_dim])
 
         def nonzero(x):
             return torch.sign(torch.abs(x))
@@ -25,10 +26,11 @@ class AutoRegressiveNNTests(TestCase):
         for output_index in range(param_dim):
             for j in range(input_dim):
                 for k in range(input_dim):
+                    z = torch.randn(1, observed_dim)
                     x = torch.randn(1, input_dim)
                     epsilon_vector = torch.zeros(1, input_dim)
                     epsilon_vector[0, j] = self.epsilon
-                    delta = (arn(x + 0.5 * epsilon_vector) - arn(x - 0.5 * epsilon_vector)) / self.epsilon
+                    delta = (arn(x + 0.5 * epsilon_vector, z) - arn(x - 0.5 * epsilon_vector, z)) / self.epsilon
                     jacobian[j, k] = float(delta[0, output_index, k])
 
             permutation = arn.get_permutation()
@@ -83,7 +85,8 @@ class AutoRegressiveNNTests(TestCase):
 
     def test_jacobians(self):
         for input_dim in [2, 3, 5, 7, 9, 11]:
-            self._test_jacobian(input_dim, 3 * input_dim + 1, 2)
+            for observed_dim in [0, 3]:
+                self._test_jacobian(input_dim, 3 * input_dim + 1, observed_dim, 2)
 
     def test_masks(self):
         for input_dim in [1, 3, 5]:
