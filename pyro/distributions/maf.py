@@ -34,9 +34,13 @@ class MaskedAutoregressiveFlow(TransformModule):
     def __init__(self, autoregressive_nn, log_scale_min_clip=-5., log_scale_max_clip=3.):
         super(MaskedAutoregressiveFlow, self).__init__(cache_size=0)
         self.arn = autoregressive_nn
+        self.z = None
         self._cached_log_scale = None
         self.log_scale_min_clip = log_scale_min_clip
         self.log_scale_max_clip = log_scale_max_clip
+
+    def set_z(self, z):
+        self.z = z
 
     def _call(self, x):
         """
@@ -44,7 +48,7 @@ class MaskedAutoregressiveFlow(TransformModule):
         :type x: torch.Tensor
 
         Invokes the bijection x=>y; in the prototypical context of a TransformedDistribution `x` is a
-        sample from the base distribution (or the output of a previous flow)
+        sample from the base distribution (or the output of a previous flow).
         """
         y_size = x.size()[:-1]
         perm = self.arn.permutation
@@ -53,7 +57,7 @@ class MaskedAutoregressiveFlow(TransformModule):
 
         # NOTE: Forward pass is an expensive operation that scales in the dimension of the input
         for idx in perm:
-            mean, log_scale = self.arn(torch.stack(y, dim=-1))
+            mean, log_scale = self.arn(torch.stack(y, dim=-1), self.z)
             scale = torch.exp(clamp_preserve_gradients(log_scale[..., idx],
                               min=self.log_scale_min_clip, max=self.log_scale_max_clip))
             y[idx] = scale * x[..., idx] + mean[..., idx]
@@ -70,7 +74,7 @@ class MaskedAutoregressiveFlow(TransformModule):
 
         Inverts y => x.
         """
-        mean, log_scale = self.arn(y)
+        mean, log_scale = self.arn(y, self.z)
         log_scale = clamp_preserve_gradients(log_scale, self.log_scale_min_clip, self.log_scale_max_clip)
         self._cached_log_scale = log_scale
 
@@ -88,6 +92,6 @@ class MaskedAutoregressiveFlow(TransformModule):
         if self._cached_log_scale is not None:
             log_scale = self._cached_log_scale
         else:
-            _, log_scale = self.arn(y)
+            _, log_scale = self.arn(y, self.z)
             log_scale = clamp_preserve_gradients(log_scale, self.log_scale_min_clip, self.log_scale_max_clip)
         return log_scale.sum(-1)
