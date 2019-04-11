@@ -255,7 +255,7 @@ class ConditionalFlowTests(TestCase):
         base_dist = dist.Normal(torch.zeros(input_dim), torch.ones(input_dim))
         flow = make_flow(input_dim, observed_dim)
         if observed_dim > 0:
-            flow.set_z(torch.randn(1, observed_dim))
+            flow.set_z(torch.randn(10, observed_dim))
 
         x_true = base_dist.sample(torch.Size([10]))
         y = flow._call(x_true)

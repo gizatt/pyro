@@ -208,12 +208,16 @@ class AutoRegressiveNN(nn.Module):
         x are inputs.
         z are observed vars, if any.
         """
+        initial_x_shape = x.shape
+
         if self.observed_dim > 0:
             if z is None:
                 raise ValueError("Must supply z if observed_dim > 0.")
-            # Support z passed in with bad batch dimension.
-            if z.shape[:-1] != x.shape[:-1]:
-                z = z.expand(x.shape[:-1] + (z.shape[-1],))
+            if x.shape[:-1] != z.shape[:-1]:
+                raise ValueError(
+                    "X and Z shapes must match up to final dim."
+                    " X shape: %s, Z Shape: %s" % (
+                        str(x.shape), str(z.shape)))
             x = torch.cat((z, x), dim=-1)
         h = x
         for layer in self.layers[:-1]:
