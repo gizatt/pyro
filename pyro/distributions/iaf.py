@@ -71,7 +71,7 @@ class InverseAutoregressiveFlow(TransformModule):
     event_dim = 1
 
     def __init__(self, autoregressive_nn, log_scale_min_clip=-5., log_scale_max_clip=3.):
-        super(InverseAutoregressiveFlow, self).__init__(cache_size=1)
+        super(InverseAutoregressiveFlow, self).__init__(cache_size=0)
         self.arn = autoregressive_nn
         self._cached_log_scale = None
         self.log_scale_min_clip = log_scale_min_clip
@@ -182,7 +182,7 @@ class InverseAutoregressiveFlowStable(TransformModule):
     event_dim = 1
 
     def __init__(self, autoregressive_nn, sigmoid_bias=2.0):
-        super(InverseAutoregressiveFlowStable, self).__init__(cache_size=1)
+        super(InverseAutoregressiveFlowStable, self).__init__(cache_size=0)
         self.arn = autoregressive_nn
         self.sigmoid = nn.Sigmoid()
         self.logsigmoid = nn.LogSigmoid()
