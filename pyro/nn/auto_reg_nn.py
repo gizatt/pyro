@@ -145,7 +145,8 @@ class AutoRegressiveNN(nn.Module):
             param_dims=[1, 1],
             permutation=None,
             skip_connections=False,
-            nonlinearity=nn.ReLU()):
+            nonlinearity=nn.ReLU(),
+            dropout_p=0.):
         super(AutoRegressiveNN, self).__init__()
         if input_dim == 1:
             warnings.warn('AutoRegressiveNN input_dim = 1. Consider using an affine transformation instead.')
@@ -184,7 +185,9 @@ class AutoRegressiveNN(nn.Module):
         # Create masked layers
         layers = [MaskedLinear(observed_dim + input_dim, hidden_dims[0], self.masks[0])]
         for i in range(1, len(hidden_dims)):
+            layers.append(nn.Dropout(dropout_p))
             layers.append(MaskedLinear(hidden_dims[i - 1], hidden_dims[i], self.masks[i]))
+        layers.append(nn.Dropout(dropout_p))
         layers.append(MaskedLinear(hidden_dims[-1], input_dim * self.output_multiplier, self.masks[-1]))
         self.layers = nn.ModuleList(layers)
 
@@ -195,6 +198,12 @@ class AutoRegressiveNN(nn.Module):
 
         # Save the nonlinearity
         self.f = nonlinearity
+
+    def set_dropout_p(self, dropout_p):
+        for layer in self.layers:
+            if isinstance(layer, nn.Dropout):
+                layer.p = dropout_p
+
 
     def get_permutation(self):
         """
